@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+:root { --accent: 101 88 184; }
+body { @apply bg-ivory text-indigo2 font-sans antialiased; }
+h1, h2, h3, h4 { @apply font-head; }
+@layer components {
+  .glass { @apply bg-white/60 backdrop-blur-xl border border-white/70 shadow-soft; }
+  .mono { @apply font-mono text-xs tracking-tight; }
+  .field { @apply w-full h-11 px-3 rounded-xl border border-gray-300 bg-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-lav focus:border-lav; }
+  textarea.field { @apply h-28 py-2.5 resize-y; }
+}
+.hero-bg { background: radial-gradient(60% 60% at 15% 10%, #EAE5FA 0%, transparent 70%), radial-gradient(50% 50% at 90% 20%, rgba(231,161,124,.35) 0%, transparent 70%), #F7F5F2; }
