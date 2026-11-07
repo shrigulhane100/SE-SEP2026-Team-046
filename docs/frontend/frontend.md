@@ -52,7 +52,7 @@ Not used: shadcn/ui and Axios. UI components are hand-written with Tailwind, and
 ```bash
 # clone your team repository (or unzip the provided archive)
 git clone <repo-url>
-cd rock-starz-frontend
+cd frontend
 
 npm install
 ```
