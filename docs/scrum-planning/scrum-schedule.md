@@ -180,8 +180,8 @@ Dates marked tentative are proposed and should be updated based on the team's ac
 | M2-03 | Pre-Sprint | Technical and Project Planning | 2 Nov 2026 | ~70 min | All 5 members | Completed | Discussed API and frontend planning, system design, Gantt chart, Kanban board and Scrum schedule. |
 | S1-01 | Sprint 1 | Sprint Planning | 8 Nov 2026 (Tentative) | 45–60 min | All 5 members | Planned | Define Sprint 1 objective, backend tasks, assignments and acceptance criteria. |
 | S1-02 | Sprint 1 | Progress Meeting 1 | 11 Nov 2026 (Tentative) | 15–30 min | Gautham, Yash, Shriyash | Planned | Review backend preparation, API requirements and database dependencies. |
-| S1-03 | Sprint 1 | Progress Meeting 2 | 14 Nov 2026 (Tentative) | 15–30 min | Gautham, Yash, Lalithkishore | Planned | Confirm implementation readiness and frontend-backend dependencies. |
-| S1-04 | Sprint 1 | Progress Meeting 3 | 17 Nov 2026 (Tentative) | 15–30 min | Gautham, Yash, Shriyash | Planned | Review API development and PostgreSQL integration progress. |
+| S1-03 | Sprint 1 | Progress Meeting 2 | 16 Nov 2026 (Tentative) | 15–30 min | Gautham, Yash, Lalithkishore | Planned | Confirm implementation readiness and frontend-backend dependencies. |
+| S1-04 | Sprint 1 | Progress Meeting 3 | 18 Nov 2026 (Tentative) | 15–30 min | Gautham, Yash, Shriyash | Planned | Review API development and PostgreSQL integration progress. |
 | S1-05 | Sprint 1 | Progress Meeting 4 | 20 Nov 2026 (Tentative) | 15–30 min | Gautham, Yash, Lalithya | Planned | Review backend completion, testing progress and outstanding defects. |
 | S1-06 | Sprint 1 | Sprint Review and Technical Review | 21 Nov 2026 (Tentative) | 30–60 min | All 5 members | Planned | Demonstrate backend functionality and review milestone deliverables. |
 | S1-07 | Sprint 1 | Sprint Retrospective | 22 Nov 2026 (Tentative) | 20–30 min | All 5 members | Planned | Discuss Sprint 1 achievements, challenges and improvements for Sprint 2. |
