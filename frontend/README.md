@@ -4,8 +4,9 @@ Prototype for SE-SEP2026-Team-046. Runs fully on a **dummy API** that mirrors th
 
 ## Run
 ```
+cd frontend
 npm install
-npm run dev        # http://localhost:5173
+npm run dev       # http://localhost:5173
 ```
 Needs Node 18+. `npm run build` makes a production build.
 
