@@ -92,10 +92,32 @@ For profile updates, omitted fields keep their current values. Send
 Existing mappings to inactive areas are kept until the owner removes them.
 Guidance area names are unique regardless of case.
 
+## Mentor discovery
+
+| Method and route | Behavior |
+| --- | --- |
+| `GET /api/v1/public/mentors` | Lists public profiles for active, verified mentors. |
+| `GET /api/v1/mentors` | Searches mentors and ranks them for the signed-in student. |
+| `GET /api/v1/mentors/{mentor_id}` | Returns the profile and match score for one mentor. |
+| `GET /api/v1/admin/mentor-verifications` | Lists mentor profiles for administrator review. |
+| `POST /api/v1/admin/mentors/{mentor_id}/verify` | Accepts `{"approve": true}` to publish a mentor or `{"approve": false}` to hide their profile. |
+
+Both list endpoints accept `q` (name, role, organisation or skill), `area_id`,
+`industry`, `mentor_type`, `availability` (`all`, `available` or
+`unavailable`), and `min_experience`. Use `limit` (1–100, default 50) and
+`offset` (default 0) to fetch pages. The response is an array.
+
+The default `sort=relevance` puts available mentors first, then compares the
+percentage of the student's active guidance areas the mentor offers, followed by
+years of experience. `sort=experience` orders by experience. Public requests
+and students without active guidance preferences get a null match score.
+Availability uses the mentor's accepting setting. `active_mentees` is zero
+until mentoring relationships are implemented in M3.5.
+
 ## Tests
 
 Run `python -m pytest` from `backend/` to check health responses, CORS,
-authentication, role enforcement, profile updates, and guidance areas. Run `alembic check`
+authentication, role enforcement, profile updates, guidance areas, mentor discovery, and verification. Run `alembic check`
 against the migrated development database to check for schema drift.
 
 
