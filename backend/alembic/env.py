@@ -1,7 +1,7 @@
 from logging.config import fileConfig
 
 from alembic import context
-from app.config import Settings
+from app.config import DatabaseSettings
 from app.db import create_db_engine
 from app.models import Base
 
@@ -22,7 +22,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    engine = create_db_engine(Settings())
+    engine = create_db_engine(DatabaseSettings())
     try:
         with engine.connect() as connection:
             context.configure(
