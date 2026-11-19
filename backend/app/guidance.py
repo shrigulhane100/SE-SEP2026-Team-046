@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.auth import Database, require_roles
 from app.models import (
     GuidanceArea,
+    MentoringRequest,
     MentorProfile,
     MentorVerification,
     User,
@@ -78,15 +79,25 @@ def profile_metadata(db: Database) -> ProfileMetadata:
 
 @admin_guidance_router.get("")
 def list_managed_areas(db: Database) -> list[ManagedGuidanceArea]:
-    """List active and inactive areas with their assigned mentor counts."""
+    """List active and inactive areas with mentor and request counts."""
     counts = (
         select(mentor_guidance_areas.c.area_id, func.count().label("mentors"))
         .group_by(mentor_guidance_areas.c.area_id)
         .subquery()
     )
+    request_counts = (
+        select(MentoringRequest.area_id, func.count().label("requests"))
+        .group_by(MentoringRequest.area_id)
+        .subquery()
+    )
     rows = db.execute(
-        select(GuidanceArea, func.coalesce(counts.c.mentors, 0))
+        select(
+            GuidanceArea,
+            func.coalesce(counts.c.mentors, 0),
+            func.coalesce(request_counts.c.requests, 0),
+        )
         .outerjoin(counts, counts.c.area_id == GuidanceArea.area_id)
+        .outerjoin(request_counts, request_counts.c.area_id == GuidanceArea.area_id)
         .order_by(GuidanceArea.name)
     )
     return [
@@ -96,8 +107,9 @@ def list_managed_areas(db: Database) -> list[ManagedGuidanceArea]:
             category=area.category,
             is_active=area.is_active,
             mentors=mentors,
+            requests=requests,
         )
-        for area, mentors in rows
+        for area, mentors, requests in rows
     ]
 
 

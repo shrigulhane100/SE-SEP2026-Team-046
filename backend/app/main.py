@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -14,8 +15,10 @@ from app.auth import admin_router, auth_router
 from app.config import Settings
 from app.db import create_db_engine, get_session
 from app.guidance import admin_guidance_router, guidance_router
+from app.mentoring import relationship_router, request_router
 from app.mentors import mentor_router, student_mentor_router, verification_router
 from app.profiles import profile_router
+from app.request_expiry import run_expiry_worker
 from app.schemas import ErrorResponse, HealthResponse
 
 router = APIRouter(prefix="/api/v1")
@@ -27,6 +30,8 @@ router.include_router(admin_guidance_router)
 router.include_router(mentor_router)
 router.include_router(student_mentor_router)
 router.include_router(verification_router)
+router.include_router(request_router)
+router.include_router(relationship_router)
 
 
 @router.get(
@@ -52,9 +57,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = create_db_engine(settings)
         app.state.session_factory = sessionmaker(bind=engine)
+        stop_expiry = asyncio.Event()
+        expiry_worker = asyncio.create_task(
+            run_expiry_worker(app.state.session_factory, stop_expiry)
+        )
         try:
             yield
         finally:
+            stop_expiry.set()
+            await expiry_worker
             engine.dispose()
 
     app = FastAPI(title="Rock Starz API", version="0.1.0", lifespan=lifespan)

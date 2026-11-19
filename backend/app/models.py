@@ -18,6 +18,7 @@ from sqlalchemy import (
     Uuid,
     false,
     func,
+    text,
     true,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -59,6 +60,8 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    student_profile: Mapped[StudentProfile | None] = relationship()
+    mentor_profile: Mapped[MentorProfile | None] = relationship()
 
 
 student_guidance_areas = Table(
@@ -160,3 +163,100 @@ class AuthSession(Base):
         ForeignKey("users.user_id", ondelete="CASCADE")
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class RequestStatus(StrEnum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+
+
+class RelationshipStatus(StrEnum):
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    CLOSED = "CLOSED"
+
+
+class MentoringType(StrEnum):
+    ONE_TIME = "ONE_TIME"
+    LONG_TERM = "LONG_TERM"
+
+
+class MentoringRequest(Base):
+    __tablename__ = "mentoring_requests"
+    __table_args__ = (
+        Index("ix_requests_student", "student_id"),
+        Index("ix_requests_mentor", "mentor_id"),
+        Index("ix_requests_status", "status"),
+        Index("ix_requests_expiry", "expires_at"),
+        Index(
+            "uq_pending_request_pair",
+            "student_id",
+            "mentor_id",
+            unique=True,
+            postgresql_where=text("status = 'PENDING'"),
+        ),
+    )
+
+    request_id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
+    mentor_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
+    area_id: Mapped[int] = mapped_column(ForeignKey("guidance_areas.area_id"))
+    message: Mapped[str] = mapped_column(Text)
+    objective: Mapped[str] = mapped_column(Text, server_default="")
+    type: Mapped[MentoringType] = mapped_column(
+        Enum(
+            MentoringType,
+            name="chk_request_type",
+            native_enum=False,
+            create_constraint=True,
+        )
+    )
+    status: Mapped[RequestStatus] = mapped_column(
+        Enum(
+            RequestStatus,
+            name="chk_mentoring_request_status",
+            native_enum=False,
+            create_constraint=True,
+        ),
+        server_default=RequestStatus.PENDING.value,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reject_reason: Mapped[str | None] = mapped_column(Text)
+    student: Mapped[User] = relationship(foreign_keys=[student_id])
+    mentor: Mapped[User] = relationship(foreign_keys=[mentor_id])
+    area: Mapped[GuidanceArea] = relationship()
+    mentoring_relationship: Mapped[MentoringRelationship | None] = relationship(
+        back_populates="request"
+    )
+
+
+class MentoringRelationship(Base):
+    __tablename__ = "mentoring_relationships"
+    __table_args__ = (UniqueConstraint("request_id", name="uq_relationship_request"),)
+
+    relationship_id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("mentoring_requests.request_id"))
+    status: Mapped[RelationshipStatus] = mapped_column(
+        Enum(
+            RelationshipStatus,
+            name="chk_relationship_status",
+            native_enum=False,
+            create_constraint=True,
+        ),
+        server_default=RelationshipStatus.ACTIVE.value,
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    request: Mapped[MentoringRequest] = relationship(
+        back_populates="mentoring_relationship"
+    )
