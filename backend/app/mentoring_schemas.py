@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import Path
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from app.engagement_schemas import ActivityResponse, FeedbackResponse, GoalResponse
 from app.models import MentoringType, RelationshipStatus, RequestStatus
 
 ResourceId = Annotated[int, Path(gt=0, le=2147483647)]
@@ -81,9 +82,9 @@ class RelationshipResponse(BaseModel):
     area: str
     student: StudentBrief
     mentor: MentorBrief
-    goals: list = Field(default_factory=list)
-    activities: list = Field(default_factory=list)
-    feedback: list = Field(default_factory=list)
+    goals: list[GoalResponse] = Field(default_factory=list)
+    activities: list[ActivityResponse] = Field(default_factory=list)
+    feedback: list[FeedbackResponse] = Field(default_factory=list)
     progress: int = 0
 
 

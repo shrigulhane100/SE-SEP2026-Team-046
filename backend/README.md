@@ -134,10 +134,30 @@ is allowed for a student and mentor pair. Acceptance checks current capacity
 and locks the mentor account so simultaneous decisions cannot overbook a slot.
 Completing or closing a relationship frees its slot.
 
+## Goals, activities, feedback and notifications
+
+| Method and route | Behavior |
+| --- | --- |
+| `POST /api/v1/relationships/{relationship_id}/goals` | Adds a goal with a title and optional target date. |
+| `PATCH /api/v1/goals/{goal_id}` | Changes the title, target date or status. |
+| `POST /api/v1/relationships/{relationship_id}/activities` | Records an activity with a type, notes and optional date. |
+| `POST /api/v1/relationships/{relationship_id}/feedback` | Creates or edits the signed-in participant's feedback, with a rating from 1 to 5. |
+| `GET /api/v1/feedback` | Lists feedback the student submitted or the mentor received. |
+| `GET /api/v1/notifications` | Lists the signed-in user's in-app notifications and unread count. |
+| `POST /api/v1/notifications/{notification_id}/read` | Marks one owned notification as read. |
+| `POST /api/v1/notifications/read-all` | Marks all of the signed-in user's notifications as read. |
+
+Relationship responses include goals, activities, feedback and the percentage
+of goals marked `DONE`. Participants can edit goals and log activities while
+a relationship is active or paused. Feedback stays available after completion
+or closure. The API creates notifications in the same transaction as the
+underlying request, relationship, goal, activity or feedback event.
+
 ## Tests
 
 Run `python -m pytest` from `backend/` to check health responses, CORS,
-authentication, role enforcement, profile updates, guidance areas, mentor discovery, and verification. Run `alembic check`
+authentication, role enforcement, profile updates, guidance areas, mentor discovery, mentoring transitions,
+and participant access to goals, feedback and notifications. Run `alembic check`
 against the migrated development database to check for schema drift.
 
 

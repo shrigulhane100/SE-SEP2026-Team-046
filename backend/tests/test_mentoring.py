@@ -93,7 +93,7 @@ def test_past_due_request_cannot_be_rejected(api, request_record):
     user.role = UserRole.MENTOR
     request_record.expires_at = datetime.now(UTC) - timedelta(seconds=1)
     db.scalar.return_value = request_record
-    db.execute.return_value.all.return_value = [(request_record.request_id,)]
+    db.scalars.return_value = [request_record]
     response = client.post("/api/v1/requests/7/reject")
     assert response.status_code == 409
     assert response.json()["detail"] == "Request is already expired"

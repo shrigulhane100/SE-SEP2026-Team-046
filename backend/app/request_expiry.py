@@ -6,7 +6,8 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.models import MentoringRequest, RequestStatus
+from app.models import MentoringRequest, NotificationType, RequestStatus
+from app.notifications import notify
 
 logger = logging.getLogger(__name__)
 EXPIRY_CHECK_SECONDS = 60
@@ -29,13 +30,24 @@ def expire_pending(
     )
     if skip_locked:
         due = due.limit(EXPIRY_BATCH_SIZE)
-    expired = db.execute(
-        update(MentoringRequest)
-        .where(MentoringRequest.request_id.in_(due))
-        .values(status=RequestStatus.EXPIRED)
-        .returning(MentoringRequest.request_id)
+    expired = list(
+        db.scalars(
+            update(MentoringRequest)
+            .where(MentoringRequest.request_id.in_(due))
+            .values(status=RequestStatus.EXPIRED)
+            .returning(MentoringRequest)
+        )
     )
-    return len(expired.all())
+    for record in expired:
+        for participant in (record.student_id, record.mentor_id):
+            notify(
+                db,
+                participant,
+                NotificationType.REQUEST_EXPIRED,
+                "A pending mentoring request expired after 48 hours.",
+                record,
+            )
+    return len(expired)
 
 
 def expire_batch(sessions: sessionmaker[Session]) -> None:

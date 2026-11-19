@@ -14,9 +14,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.auth import admin_router, auth_router
 from app.config import Settings
 from app.db import create_db_engine, get_session
+from app.engagement import engagement_router
 from app.guidance import admin_guidance_router, guidance_router
 from app.mentoring import relationship_router, request_router
 from app.mentors import mentor_router, student_mentor_router, verification_router
+from app.notifications import notification_router
 from app.profiles import profile_router
 from app.request_expiry import run_expiry_worker
 from app.schemas import ErrorResponse, HealthResponse
@@ -32,6 +34,8 @@ router.include_router(student_mentor_router)
 router.include_router(verification_router)
 router.include_router(request_router)
 router.include_router(relationship_router)
+router.include_router(engagement_router)
+router.include_router(notification_router)
 
 
 @router.get(
