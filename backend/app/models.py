@@ -20,6 +20,7 @@ from sqlalchemy import (
     func,
     true,
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -92,9 +93,11 @@ class StudentProfile(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
     roll_number: Mapped[str] = mapped_column(String(50))
     level: Mapped[str | None] = mapped_column(String(100))
+    education: Mapped[str | None] = mapped_column(Text)
+    interests: Mapped[str | None] = mapped_column(Text)
     career_stage: Mapped[str | None] = mapped_column(String(100))
     career_objective: Mapped[str | None] = mapped_column(String(30))
-    skills: Mapped[str | None] = mapped_column(Text)
+    skills: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     goals_summary: Mapped[str | None] = mapped_column(Text)
     preferred_mode: Mapped[str | None] = mapped_column(String(100))
     guidance_areas: Mapped[list[GuidanceArea]] = relationship(
@@ -115,7 +118,9 @@ class MentorProfile(Base):
     mentor_type: Mapped[str | None] = mapped_column(String(100))
     industry: Mapped[str | None] = mapped_column(String(100))
     current_role: Mapped[str | None] = mapped_column(String(150))
-    past_roles: Mapped[str | None] = mapped_column(Text)
+    organisation: Mapped[str | None] = mapped_column(String(150))
+    skills: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    past_roles: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     academic_background: Mapped[str | None] = mapped_column(Text)
     experience_years: Mapped[int] = mapped_column(server_default="0")
     bio: Mapped[str | None] = mapped_column(Text)
@@ -137,12 +142,13 @@ class MentorProfile(Base):
 
 class GuidanceArea(Base):
     __tablename__ = "guidance_areas"
-    __table_args__ = (UniqueConstraint("name", name="uq_guidance_areas_name"),)
-
     area_id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(150))
     category: Mapped[str | None] = mapped_column(String(100))
     is_active: Mapped[bool] = mapped_column(server_default=true())
+
+
+Index("uq_guidance_areas_name_ci", func.lower(GuidanceArea.name), unique=True)
 
 
 class AuthSession(Base):

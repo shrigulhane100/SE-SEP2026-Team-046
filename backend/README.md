@@ -74,10 +74,28 @@ The command prompts privately for the password.
 python -m app.create_admin --name "Programme Admin" --email admin@example.com
 ```
 
+## Profiles and guidance areas
+
+| Method and route | Behavior |
+| --- | --- |
+| `GET /api/v1/profile/me` | Returns the signed-in student or mentor's profile, completion percentage, and guidance-area IDs. |
+| `PUT /api/v1/profile/me` | Saves the caller's profile and creates it if needed. A student creating a profile must supply `roll_number`. |
+| `GET /api/v1/guidance-areas` | Lists active areas and their IDs. |
+| `GET /api/v1/meta` | Lists profile form choices. |
+| `GET /api/v1/admin/guidance-areas` | Lists all areas with mentor counts. Request counts are zero until the mentoring-request APIs are available. |
+| `POST /api/v1/admin/guidance-areas` | Adds an area with a `name` and an optional `category`. |
+| `PATCH /api/v1/admin/guidance-areas/{area_id}` | Edits an area's name, category or active status. |
+
+Log in as an administrator to create an area before assigning it to a profile.
+For profile updates, omitted fields keep their current values. Send
+`area_ids` to replace the selected areas. An empty array clears the list.
+Existing mappings to inactive areas are kept until the owner removes them.
+Guidance area names are unique regardless of case.
+
 ## Tests
 
 Run `python -m pytest` from `backend/` to check health responses, CORS,
-authentication, JWT expiry, logout, and role enforcement. Run `alembic check`
+authentication, role enforcement, profile updates, and guidance areas. Run `alembic check`
 against the migrated development database to check for schema drift.
 
 

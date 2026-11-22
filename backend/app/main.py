@@ -13,11 +13,16 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.auth import admin_router, auth_router
 from app.config import Settings
 from app.db import create_db_engine, get_session
+from app.guidance import admin_guidance_router, guidance_router
+from app.profiles import profile_router
 from app.schemas import ErrorResponse, HealthResponse
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(auth_router)
 router.include_router(admin_router)
+router.include_router(profile_router)
+router.include_router(guidance_router)
+router.include_router(admin_guidance_router)
 
 
 @router.get(
