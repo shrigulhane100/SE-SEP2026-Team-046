@@ -50,7 +50,7 @@ def mentor():
 def test_student_list_returns_a_match_score_and_public_fields(discovery, mentor):
     client, db, _ = discovery
     db.scalars.return_value = [10, 20, 40]
-    db.execute.return_value = [(mentor, "Mentor Name", 2)]
+    db.execute.return_value = [(mentor, "Mentor Name", 2, 0)]
 
     response = client.get("/api/v1/mentors")
     assert response.status_code == 200
@@ -68,7 +68,7 @@ def test_public_discovery_returns_null_match_for_an_unavailable_mentor(
 ):
     client, db, _ = discovery
     mentor.is_accepting = False
-    db.execute.return_value = [(mentor, "Mentor Name", 0)]
+    db.execute.return_value = [(mentor, "Mentor Name", 0, 0)]
 
     response = client.get("/api/v1/public/mentors?limit=3&offset=1")
     assert response.status_code == 200
@@ -127,7 +127,7 @@ def test_administrator_can_list_and_revoke_verification(discovery, mentor):
     client, db, user = discovery
     user.role = UserRole.ADMIN
     db.execute.return_value = [
-        (mentor, "Mentor Name", "mentor@example.com", datetime.now(UTC), True)
+        (mentor, "Mentor Name", "mentor@example.com", datetime.now(UTC), True, 0)
     ]
     db.scalar.return_value = mentor
 

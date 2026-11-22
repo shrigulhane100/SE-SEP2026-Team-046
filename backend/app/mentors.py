@@ -7,6 +7,7 @@ from sqlalchemy import Select, and_, func, literal, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import Database, require_roles
+from app.mentoring_capacity import occupied_mentees
 from app.models import (
     GuidanceArea,
     MentorProfile,
@@ -40,6 +41,12 @@ verification_router = APIRouter(
 )
 Student = Annotated[User, Depends(require_roles(UserRole.STUDENT))]
 MentorId = Annotated[int, Path(gt=0, le=2147483647)]
+MENTOR_LOAD = (
+    occupied_mentees(MentorProfile.user_id)
+    .correlate(MentorProfile)
+    .scalar_subquery()
+    .label("active_mentees")
+)
 FilterText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)]
 
 
@@ -72,8 +79,7 @@ class MentorResponse(BaseModel):
     area_ids: list[int]
     areas: list[str]
     max_mentees: int
-    # Mentoring relationships and occupied capacity arrive with M3.5.
-    active_mentees: int = 0
+    active_mentees: int
     is_accepting: bool
     verification_status: MentorVerification
     available: bool
@@ -121,7 +127,7 @@ def mentor_query(area_ids: list[int]) -> Select:
     else:
         matched = literal(0)
     return (
-        select(MentorProfile, User.name, matched.label("matched_areas"))
+        select(MentorProfile, User.name, matched.label("matched_areas"), MENTOR_LOAD)
         .join(User, User.user_id == MentorProfile.user_id)
         .where(
             User.role == UserRole.MENTOR,
@@ -160,16 +166,19 @@ def apply_filters(query: Select, filters: MentorFilters) -> Select:
         query = query.where(
             func.lower(MentorProfile.mentor_type) == filters.mentor_type.lower()
         )
+    available = and_(
+        MentorProfile.is_accepting, MENTOR_LOAD < MentorProfile.max_mentees
+    )
     if filters.availability != "all":
         query = query.where(
-            MentorProfile.is_accepting.is_(filters.availability == "available")
+            available if filters.availability == "available" else ~available
         )
     if filters.min_experience:
         query = query.where(MentorProfile.experience_years >= filters.min_experience)
 
     if filters.sort == "relevance":
         query = query.order_by(
-            MentorProfile.is_accepting.desc(),
+            available.desc(),
             query.selected_columns.matched_areas.desc(),
         )
     return (
@@ -186,6 +195,7 @@ def mentor_response(
     matches: int = 0,
     student_area_count: int = 0,
     account_active: bool = True,
+    active_mentees: int,
 ) -> MentorResponse:
     fields = MentorProfileData.model_validate(profile).model_dump(
         exclude={"id", "user_id"}
@@ -206,10 +216,12 @@ def mentor_response(
         name=name,
         area_ids=[area.area_id for area in areas],
         areas=[area.name for area in areas],
+        active_mentees=active_mentees,
         available=(
             account_active
             and profile.verification_status == MentorVerification.VERIFIED
             and profile.is_accepting
+            and active_mentees < profile.max_mentees
         ),
         match=match,
     )
@@ -221,9 +233,13 @@ def find_mentors(
     rows = db.execute(apply_filters(mentor_query(preferences), filters))
     return [
         mentor_response(
-            profile, name, matches=matches, student_area_count=len(preferences)
+            profile,
+            name,
+            matches=matches,
+            student_area_count=len(preferences),
+            active_mentees=load,
         )
-        for profile, name, matches in rows
+        for profile, name, matches, load in rows
     ]
 
 
@@ -255,9 +271,13 @@ def get_mentor(mentor_id: MentorId, student: Student, db: Database) -> MentorRes
     ).one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Mentor not found")
-    profile, name, matches = row
+    profile, name, matches, load = row
     return mentor_response(
-        profile, name, matches=matches, student_area_count=len(preferences)
+        profile,
+        name,
+        matches=matches,
+        student_area_count=len(preferences),
+        active_mentees=load,
     )
 
 
@@ -265,7 +285,14 @@ def get_mentor(mentor_id: MentorId, student: Student, db: Database) -> MentorRes
 def list_mentor_verifications(db: Database) -> list[MentorVerificationResponse]:
     """List mentor profiles for the administrator's verification screen."""
     rows = db.execute(
-        select(MentorProfile, User.name, User.email, User.created_at, User.is_active)
+        select(
+            MentorProfile,
+            User.name,
+            User.email,
+            User.created_at,
+            User.is_active,
+            MENTOR_LOAD,
+        )
         .join(User, User.user_id == MentorProfile.user_id)
         .where(User.role == UserRole.MENTOR)
         .options(
@@ -278,11 +305,13 @@ def list_mentor_verifications(db: Database) -> list[MentorVerificationResponse]:
     )
     return [
         MentorVerificationResponse(
-            **mentor_response(profile, name, account_active=is_active).model_dump(),
+            **mentor_response(
+                profile, name, account_active=is_active, active_mentees=load
+            ).model_dump(),
             email=email,
             registered_at=created_at,
         )
-        for profile, name, email, created_at, is_active in rows
+        for profile, name, email, created_at, is_active, load in rows
     ]
 
 

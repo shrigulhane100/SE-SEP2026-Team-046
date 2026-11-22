@@ -82,7 +82,7 @@ python -m app.create_admin --name "Programme Admin" --email admin@example.com
 | `PUT /api/v1/profile/me` | Saves the caller's profile and creates it if needed. A student creating a profile must supply `roll_number`. |
 | `GET /api/v1/guidance-areas` | Lists active areas and their IDs. |
 | `GET /api/v1/meta` | Lists profile form choices. |
-| `GET /api/v1/admin/guidance-areas` | Lists all areas with mentor counts. Request counts are zero until the mentoring-request APIs are available. |
+| `GET /api/v1/admin/guidance-areas` | Lists all areas with mentor and request counts. |
 | `POST /api/v1/admin/guidance-areas` | Adds an area with a `name` and an optional `category`. |
 | `PATCH /api/v1/admin/guidance-areas/{area_id}` | Edits an area's name, category or active status. |
 
@@ -111,8 +111,28 @@ The default `sort=relevance` puts available mentors first, then compares the
 percentage of the student's active guidance areas the mentor offers, followed by
 years of experience. `sort=experience` orders by experience. Public requests
 and students without active guidance preferences get a null match score.
-Availability uses the mentor's accepting setting. `active_mentees` is zero
-until mentoring relationships are implemented in M3.5.
+Availability uses the mentor's accepting setting and occupied capacity. Active
+and paused mentoring relationships both occupy one slot.
+
+## Mentoring requests and relationships
+
+| Method and route | Behavior |
+| --- | --- |
+| `POST /api/v1/requests` | Student sends a request with a mentor ID, an offered area ID, a message and the mentoring type. |
+| `GET /api/v1/requests` | Lists a student's outbox or a mentor's inbox. Pass `status` to filter. |
+| `GET /api/v1/requests/{request_id}` | Returns a request to either participant. |
+| `POST /api/v1/requests/{request_id}/accept` | Mentor accepts a pending request and creates its relationship in the same transaction. |
+| `POST /api/v1/requests/{request_id}/reject` | Mentor rejects a pending request with an optional reason. |
+| `POST /api/v1/requests/{request_id}/cancel` | Student cancels their pending request. |
+| `GET /api/v1/relationships` | Lists a participant's relationships. Pass `status` to filter. |
+| `GET /api/v1/relationships/{relationship_id}` | Returns a relationship to either participant. |
+| `PATCH /api/v1/relationships/{relationship_id}/status` | Pauses, resumes or completes mentoring. Mentors may also close it. |
+
+Pending requests expire after 48 hours. The API checks expiry during request
+operations and runs a background check once per minute. Only one pending request
+is allowed for a student and mentor pair. Acceptance checks current capacity
+and locks the mentor account so simultaneous decisions cannot overbook a slot.
+Completing or closing a relationship frees its slot.
 
 ## Tests
 

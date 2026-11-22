@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import Database, require_roles, user_response
+from app.mentoring_capacity import occupied_mentees
 from app.models import GuidanceArea, MentorProfile, StudentProfile, User, UserRole
 from app.profile_schemas import (
     MentorProfileData,
@@ -154,6 +155,13 @@ def save_profile(
 
     profile = find_profile(db, account)
     details = data.model_dump(exclude_unset=True)
+    if not student and "max_mentees" in details:
+        occupied = db.scalar(occupied_mentees(account.user_id))
+        if details["max_mentees"] < occupied:
+            raise HTTPException(
+                status_code=422,
+                detail="Maximum mentees cannot be below current occupancy",
+            )
     if profile is None:
         if student and "roll_number" not in details:
             raise HTTPException(
