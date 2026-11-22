@@ -1,10 +1,11 @@
 # Rock Starz backend
 
-FastAPI and PostgreSQL foundation for the student mentoring platform. The API is
+FastAPI and PostgreSQL backend for the student mentoring platform. The API is
 versioned under `/api/v1`. The initial migration creates users, student and
 mentor profiles, guidance areas, and both profile-to-guidance-area mappings.
 It includes verification and active status fields used by the frontend contract.
-The request and relationship models will arrive with their feature APIs.
+The authentication migration adds revocable login sessions and stores the
+career objective selected during student registration.
 
 ## Local setup
 
@@ -32,7 +33,11 @@ Set `DATABASE_URL` in `.env` to the database connection URL, using the
 `postgresql+psycopg` scheme. If the credentials contain reserved URL
 characters, percent-encode them in the URL. Set `CORS_ORIGINS` to a JSON list
 of allowed browser origins. The example allows the two common local Vite
-origins. Application settings also accept environment variables.
+origins. Generate a private `JWT_SECRET` with
+`python -c "import secrets; print(secrets.token_urlsafe(48))"` and set it in
+`.env`. Access tokens last 60 minutes by default. Set
+`JWT_EXPIRY_MINUTES` to change the duration. Application settings also
+accept environment variables.
 
 ```sh
 alembic upgrade head
@@ -45,9 +50,36 @@ uvicorn app.main:create_app --factory --reload
   after a successful database query. It returns `503` with
   `{"detail":"Database unavailable"}` if the database connection fails.
 
-Run `python -m pytest` from `backend/` to check the health response, database
-failure handling, and CORS. Run `alembic check` against the migrated
-development database to check for schema drift.
+## Authentication
+
+Use Swagger or a JSON client to call the following endpoints.
+
+| Method and route | Behavior |
+| --- | --- |
+| `POST /api/v1/auth/register` | Accepts `role`, `name`, `email`, and `password`. Students also supply `roll_number` and can supply `career_objective`. Mentors can supply `mentor_type`. Returns a bearer token and the new account. |
+| `POST /api/v1/auth/login` | Accepts JSON `email` and `password` and returns a bearer token and account details. |
+| `GET /api/v1/auth/me` | Returns the account for the bearer token. |
+| `POST /api/v1/auth/logout` | Revokes the current session and returns HTTP 204. |
+| `GET /api/v1/admin/users` | Lists accounts for administrators and accepts optional `role` and `q` filters. |
+
+New accounts use passwords of 8 to 128 characters stored as Argon2id hashes.
+In Swagger, use **Authorize** to set the token. For other clients, send
+`Authorization: Bearer <token>`. Invalid, expired, and revoked tokens return
+401. A disabled account or an account without the required role returns 403.
+
+Create an administrator from an interactive terminal after applying migrations.
+The command prompts privately for the password.
+
+```sh
+python -m app.create_admin --name "Programme Admin" --email admin@example.com
+```
+
+## Tests
+
+Run `python -m pytest` from `backend/` to check health responses, CORS,
+authentication, JWT expiry, logout, and role enforcement. Run `alembic check`
+against the migrated development database to check for schema drift.
+
 
 ## Migrations
 

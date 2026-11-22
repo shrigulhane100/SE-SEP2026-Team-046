@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
@@ -9,10 +10,12 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     String,
     Table,
     Text,
     UniqueConstraint,
+    Uuid,
     false,
     func,
     true,
@@ -90,6 +93,7 @@ class StudentProfile(Base):
     roll_number: Mapped[str] = mapped_column(String(50))
     level: Mapped[str | None] = mapped_column(String(100))
     career_stage: Mapped[str | None] = mapped_column(String(100))
+    career_objective: Mapped[str | None] = mapped_column(String(30))
     skills: Mapped[str | None] = mapped_column(Text)
     goals_summary: Mapped[str | None] = mapped_column(Text)
     preferred_mode: Mapped[str | None] = mapped_column(String(100))
@@ -139,3 +143,14 @@ class GuidanceArea(Base):
     name: Mapped[str] = mapped_column(String(150))
     category: Mapped[str | None] = mapped_column(String(100))
     is_active: Mapped[bool] = mapped_column(server_default=true())
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+    __table_args__ = (Index("ix_auth_sessions_user_expiry", "user_id", "expires_at"),)
+
+    session_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.user_id", ondelete="CASCADE")
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

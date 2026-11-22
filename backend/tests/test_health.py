@@ -16,6 +16,7 @@ def client_and_session():
         Settings(
             database_url="postgresql+psycopg://localhost/rockstarz_test",
             cors_origins=["http://localhost:5173"],
+            jwt_secret="local-test-key-for-health-tests-only",
         )
     )
     session = Mock(spec=Session)
