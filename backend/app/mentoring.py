@@ -5,9 +5,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth import Database, require_roles
+from app.engagement_schemas import ActivityResponse, FeedbackResponse, GoalResponse
 from app.mentoring_capacity import OPEN_RELATIONSHIP_STATUSES, occupied_mentees
 from app.mentoring_schemas import (
     AcceptanceResponse,
@@ -21,17 +22,23 @@ from app.mentoring_schemas import (
     StudentBrief,
 )
 from app.models import (
+    Activity,
+    Feedback,
+    Goal,
+    GoalStatus,
     GuidanceArea,
     MentoringRelationship,
     MentoringRequest,
     MentorProfile,
     MentorVerification,
+    NotificationType,
     RelationshipStatus,
     RequestStatus,
     User,
     UserRole,
     mentor_guidance_areas,
 )
+from app.notifications import notify
 from app.request_expiry import expire_pending
 from app.schemas import ErrorResponse
 
@@ -57,6 +64,10 @@ def request_owner(user: User):
     return MentoringRequest.mentor_id == user.user_id
 
 
+def other_participant(request: MentoringRequest, user_id: int) -> int:
+    return request.mentor_id if user_id == request.student_id else request.student_id
+
+
 def request_parties():
     return (
         joinedload(MentoringRequest.area),
@@ -75,7 +86,12 @@ def relationship_query():
     return (
         select(MentoringRelationship)
         .join(MentoringRelationship.request)
-        .options(joinedload(MentoringRelationship.request).options(*request_parties()))
+        .options(
+            joinedload(MentoringRelationship.request).options(*request_parties()),
+            selectinload(MentoringRelationship.goals).joinedload(Goal.author),
+            selectinload(MentoringRelationship.activities).joinedload(Activity.author),
+            selectinload(MentoringRelationship.feedback).joinedload(Feedback.author),
+        )
     )
 
 
@@ -147,6 +163,9 @@ def request_response(record: MentoringRequest) -> RequestResponse:
 
 def relationship_response(record: MentoringRelationship) -> RelationshipResponse:
     student, mentor = participant_profiles(record.request)
+    goals = sorted(record.goals, key=lambda goal: goal.goal_id)
+    done = sum(goal.status == GoalStatus.DONE for goal in goals)
+    progress = (100 * done + len(goals) // 2) // len(goals) if goals else 0
     return RelationshipResponse(
         id=record.relationship_id,
         request_id=record.request_id,
@@ -157,6 +176,20 @@ def relationship_response(record: MentoringRelationship) -> RelationshipResponse
         area=record.request.area.name,
         student=student,
         mentor=mentor,
+        goals=[GoalResponse.model_validate(goal) for goal in goals],
+        activities=[
+            ActivityResponse.model_validate(activity)
+            for activity in sorted(
+                record.activities,
+                key=lambda row: (row.created_at, row.activity_id),
+                reverse=True,
+            )
+        ],
+        feedback=[
+            FeedbackResponse.model_validate(item)
+            for item in sorted(record.feedback, key=lambda row: row.feedback_id)
+        ],
+        progress=progress,
     )
 
 
@@ -268,6 +301,13 @@ def create_request(data: RequestCreate, user: Student, db: Database) -> RequestR
                 detail="You already have a pending request to this mentor",
             ) from None
         raise
+    notify(
+        db,
+        record.mentor_id,
+        NotificationType.NEW_REQUEST,
+        f"New mentoring request from {user.name}.",
+        record,
+    )
     response = request_response(record)
     db.commit()
     return response
@@ -333,6 +373,13 @@ def accept_request(
     relationship = MentoringRelationship(request=record, started_at=now)
     db.add(relationship)
     db.flush()
+    notify(
+        db,
+        record.student_id,
+        NotificationType.REQUEST_ACCEPTED,
+        f"{user.name} accepted your request.",
+        relationship,
+    )
     response = AcceptanceResponse(
         request=request_response(record),
         relationship=relationship_response(relationship),
@@ -352,6 +399,13 @@ def reject_request(
     record.status = RequestStatus.REJECTED
     record.responded_at = datetime.now(UTC)
     record.reject_reason = (data.reason or None) if data else None
+    notify(
+        db,
+        record.student_id,
+        NotificationType.REQUEST_REJECTED,
+        f"{user.name} declined your request.",
+        record,
+    )
     response = request_response(record)
     db.commit()
     return response
@@ -364,6 +418,13 @@ def cancel_request(
     record = pending_request(db, request_id, user)
     record.status = RequestStatus.CANCELLED
     record.responded_at = datetime.now(UTC)
+    notify(
+        db,
+        record.mentor_id,
+        NotificationType.REQUEST_CANCELLED,
+        f"{user.name} cancelled a request.",
+        record,
+    )
     response = request_response(record)
     db.commit()
     return response
@@ -420,6 +481,13 @@ def update_relationship(
     record.status = data.status
     if data.status not in OPEN_RELATIONSHIP_STATUSES:
         record.ended_at = datetime.now(UTC)
+    notify(
+        db,
+        other_participant(record.request, user.user_id),
+        NotificationType.RELATIONSHIP_UPDATED,
+        f"{user.name} changed the mentoring status to {record.status.value.lower()}.",
+        record,
+    )
     response = relationship_response(record)
     db.commit()
     return response

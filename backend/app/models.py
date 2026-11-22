@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -259,4 +259,150 @@ class MentoringRelationship(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     request: Mapped[MentoringRequest] = relationship(
         back_populates="mentoring_relationship"
+    )
+    goals: Mapped[list[Goal]] = relationship(back_populates="relationship")
+    activities: Mapped[list[Activity]] = relationship(back_populates="relationship")
+    feedback: Mapped[list[Feedback]] = relationship(back_populates="relationship")
+
+
+class GoalStatus(StrEnum):
+    TODO = "TODO"
+    IN_PROGRESS = "IN_PROGRESS"
+    DONE = "DONE"
+
+
+class ActivityType(StrEnum):
+    MEETING = "MEETING"
+    RESUME_REVIEW = "RESUME_REVIEW"
+    MOCK_INTERVIEW = "MOCK_INTERVIEW"
+    CHECK_IN = "CHECK_IN"
+    OTHER = "OTHER"
+
+
+class NotificationType(StrEnum):
+    NEW_REQUEST = "NEW_REQUEST"
+    REQUEST_ACCEPTED = "REQUEST_ACCEPTED"
+    REQUEST_REJECTED = "REQUEST_REJECTED"
+    REQUEST_CANCELLED = "REQUEST_CANCELLED"
+    REQUEST_EXPIRED = "REQUEST_EXPIRED"
+    RELATIONSHIP_UPDATED = "RELATIONSHIP_UPDATED"
+    GOAL_ADDED = "GOAL_ADDED"
+    ACTIVITY_LOGGED = "ACTIVITY_LOGGED"
+    FEEDBACK_RECEIVED = "FEEDBACK_RECEIVED"
+
+
+class NotificationReference(StrEnum):
+    REQUEST = "REQUEST"
+    RELATIONSHIP = "RELATIONSHIP"
+
+
+class Goal(Base):
+    __tablename__ = "goals"
+    __table_args__ = (Index("ix_goals_relationship", "relationship_id"),)
+
+    goal_id: Mapped[int] = mapped_column(primary_key=True)
+    relationship_id: Mapped[int] = mapped_column(
+        ForeignKey("mentoring_relationships.relationship_id")
+    )
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[GoalStatus] = mapped_column(
+        Enum(
+            GoalStatus,
+            name="chk_goal_status",
+            native_enum=False,
+            create_constraint=True,
+        ),
+        server_default=GoalStatus.TODO.value,
+    )
+    target_date: Mapped[date | None]
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    author: Mapped[User] = relationship()
+    relationship: Mapped[MentoringRelationship] = relationship(back_populates="goals")
+
+
+class Activity(Base):
+    __tablename__ = "activities"
+    __table_args__ = (Index("ix_activities_relationship", "relationship_id"),)
+
+    activity_id: Mapped[int] = mapped_column(primary_key=True)
+    relationship_id: Mapped[int] = mapped_column(
+        ForeignKey("mentoring_relationships.relationship_id")
+    )
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
+    activity_type: Mapped[ActivityType] = mapped_column(
+        Enum(
+            ActivityType,
+            name="chk_activity_type",
+            native_enum=False,
+            create_constraint=True,
+        )
+    )
+    notes: Mapped[str] = mapped_column(Text)
+    activity_date: Mapped[date]
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    author: Mapped[User] = relationship()
+    relationship: Mapped[MentoringRelationship] = relationship(
+        back_populates="activities"
+    )
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+    __table_args__ = (
+        UniqueConstraint("relationship_id", "given_by", name="uq_feedback_author"),
+        CheckConstraint("rating BETWEEN 1 AND 5", name="chk_feedback_rating"),
+    )
+
+    feedback_id: Mapped[int] = mapped_column(primary_key=True)
+    relationship_id: Mapped[int] = mapped_column(
+        ForeignKey("mentoring_relationships.relationship_id")
+    )
+    given_by: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
+    rating: Mapped[int]
+    comments: Mapped[str] = mapped_column(Text, server_default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    author: Mapped[User] = relationship()
+    relationship: Mapped[MentoringRelationship] = relationship(
+        back_populates="feedback"
+    )
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    __table_args__ = (
+        Index("ix_notifications_user_read", "user_id", "is_read"),
+        CheckConstraint("reference_id > 0", name="chk_notification_reference_id"),
+    )
+
+    notification_id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
+    type: Mapped[NotificationType] = mapped_column(
+        "notification_type",
+        Enum(
+            NotificationType,
+            name="chk_notification_type",
+            native_enum=False,
+            create_constraint=True,
+        ),
+    )
+    message: Mapped[str] = mapped_column(Text)
+    reference_type: Mapped[NotificationReference] = mapped_column(
+        Enum(
+            NotificationReference,
+            name="chk_notification_reference_type",
+            native_enum=False,
+            create_constraint=True,
+        )
+    )
+    reference_id: Mapped[int]
+    is_read: Mapped[bool] = mapped_column(server_default=false())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )
