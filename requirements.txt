@@ -1,0 +1,50 @@
+# ==============================================================================
+# Rock Starz - Root Requirements & Dependency Specification
+# Project: Student Mentoring and Career Support Platform (SE-SEP2026-Team-046)
+# ==============================================================================
+#
+# NOTE ON MULTI-TIER ARCHITECTURE:
+# - Backend and Testing suites run on Python 3.12+.
+# - Frontend runs on Node.js 18+ / React 18 / Vite 5 (see frontend/package.json).
+#
+# QUICK START:
+#   Python (Backend & Tests): pip install -r requirements.txt
+#   Frontend (Web App):       cd frontend && npm install
+# ==============================================================================
+
+# --- Core Backend Runtime (FastAPI & Database) ---
+fastapi==0.163.2
+uvicorn==0.54.0
+SQLAlchemy==2.0.58
+alembic==1.20.1
+psycopg[binary]==3.3.9
+pydantic==2.14.3
+pydantic-settings==2.16.3
+email-validator==2.4.0
+pwdlib[argon2]==0.4.2
+PyJWT==2.15.1
+
+# --- Testing & Quality Assurance Suites ---
+# Covers unit tests (backend/tests), functional tests (testing/api_functional),
+# and end-to-end scenario suites (testing/api_independent)
+pytest==9.2.0
+httpx==0.28.1
+requests>=2.32.0
+pluggy>=1.5.0
+anyio>=4.0.0
+
+# ==============================================================================
+# Frontend Dependencies (Managed via frontend/package.json & npm)
+# Node.js >= 18.0.0, npm >= 9.0.0 required
+# Core Frontend Libraries:
+#   - react: ^18.3.1
+#   - react-dom: ^18.3.1
+#   - react-router-dom: ^6.28.0
+#   - react-hook-form: ^7.53.2
+#   - zod: ^3.23.8
+#   - tailwindcss: ^3.4.14
+#   - vite: ^5.4.10
+#   - lucide-react: ^0.460.0
+#   - recharts: ^2.13.3
+#   - sonner: ^1.7.0
+# ==============================================================================

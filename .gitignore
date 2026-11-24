@@ -1,8 +1,70 @@
-# Frontend dependencies
-frontend/node_modules/
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Frontend build output
-frontend/dist/
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
 
-# Frontend environment files
+# Environment Configurations & Secrets
+.env
+.env.local
+.env.*.local
+backend/.env
 frontend/.env
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+coverage.xml
+*.cover
+test_cases.csv
+results/
+report/
+
+# Frontend Dependencies & Build Output
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+.eslintcache
+.stylelintcache
+
+# Logs & Databases
+*.log
+*.sqlite3
+*.db
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
