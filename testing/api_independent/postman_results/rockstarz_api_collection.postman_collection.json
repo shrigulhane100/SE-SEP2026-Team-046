@@ -1,0 +1,2703 @@
+{
+  "info": {
+    "name": "Rock Starz - Tester Collection (Milestone 3)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Health",
+      "item": [
+        {
+          "name": "PM-01 Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test(\"DB reachable\", () => pm.expect(pm.response.json().database).to.eql(\"reachable\"));",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Auth",
+      "item": [
+        {
+          "name": "PM-02 Admin login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.collectionVariables.set(\"admin_token\", pm.response.json().access_token);",
+                  "",
+                  "pm.test(\"Body: access_token + ADMIN role\", () => { const j = pm.response.json(); pm.expect(typeof j.access_token===\"string\" && j.user.role===\"ADMIN\").to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-03 Register student",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r=Math.random().toString(36).slice(2,8);pm.collectionVariables.set(\"student_email\",\"pm_student_\"+r+\"@test.com\");pm.collectionVariables.set(\"roll\",\"PM\"+r.toUpperCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.collectionVariables.set(\"student_token\", pm.response.json().access_token);",
+                  "pm.collectionVariables.set(\"student_id\", pm.response.json().user.id);",
+                  "pm.test(\"No password in response\", () => pm.expect(pm.response.text().toLowerCase()).to.not.include(\"strong#pass\"));",
+                  "pm.test(\"Body: bearer token, STUDENT, email matches\", () => { const j = pm.response.json(); pm.expect(j.token_type===\"bearer\" && j.user.role===\"STUDENT\" && j.user.email===pm.collectionVariables.get(\"student_email\").toLowerCase() && Number.isInteger(j.user.id)).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"STUDENT\",\n  \"name\": \"Postman Student\",\n  \"email\": \"{{student_email}}\",\n  \"password\": \"Strong#Pass2026\",\n  \"roll_number\": \"{{roll}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-04 Register mentor",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r=Math.random().toString(36).slice(2,8);pm.collectionVariables.set(\"mentor_email\",\"pm_mentor_\"+r+\"@test.com\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.collectionVariables.set(\"mentor_token\", pm.response.json().access_token);",
+                  "pm.collectionVariables.set(\"mentor_id\", pm.response.json().user.id);",
+                  "",
+                  "pm.test(\"Body: MENTOR role, email matches\", () => { const j = pm.response.json(); pm.expect(j.user.role===\"MENTOR\" && j.user.email===pm.collectionVariables.get(\"mentor_email\").toLowerCase()).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"MENTOR\",\n  \"name\": \"Postman Mentor\",\n  \"email\": \"{{mentor_email}}\",\n  \"password\": \"Strong#Pass2026\",\n  \"mentor_type\": \"Industry Professional\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-05 Register duplicate email -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"STUDENT\",\n  \"name\": \"Dup Student\",\n  \"email\": \"{{student_email}}\",\n  \"password\": \"Strong#Pass2026\",\n  \"roll_number\": \"DUP12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-06 Register short password -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"STUDENT\",\n  \"name\": \"Short Pw\",\n  \"email\": \"shortpw@test.com\",\n  \"password\": \"short\",\n  \"roll_number\": \"SHORT123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-07 Register as ADMIN -> blocked",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\",\n  \"name\": \"Evil Admin\",\n  \"email\": \"evil@test.com\",\n  \"password\": \"Strong#Pass2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-08 Login wrong password -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{student_email}}\",\n  \"password\": \"WrongPass#1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-09 Login OK (student)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: login returns same user\", () => { const j = pm.response.json(); pm.expect(j.user.email===pm.collectionVariables.get(\"student_email\").toLowerCase() && typeof j.access_token===\"string\").to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{student_email}}\",\n  \"password\": \"Strong#Pass2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-10 GET /auth/me with token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test(\"Role is STUDENT\", () => pm.expect(pm.response.json().role).to.eql(\"STUDENT\"));",
+                  "pm.test(\"Body: me email matches\", () => { const j = pm.response.json(); pm.expect(j.email===pm.collectionVariables.get(\"student_email\").toLowerCase()).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-11 GET /auth/me no token -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/me"
+          }
+        },
+        {
+          "name": "PM-12 GET /auth/me tampered token -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bad_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Admin and Profiles",
+      "item": [
+        {
+          "name": "PM-13 Admin creates guidance area",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.collectionVariables.set(\"area_id\", pm.response.json().id);",
+                  "",
+                  "pm.test(\"Body: area id is integer, name set\", () => { const j = pm.response.json(); pm.expect(Number.isInteger(j.id) && j.name.startsWith(\"PM Area\")).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/admin/guidance-areas",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Area {{$timestamp}}\",\n  \"category\": \"Career\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-14 Student cannot create area -> 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/admin/guidance-areas",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hack area\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-15 Public guidance areas list",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test(\"Is array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/guidance-areas"
+          }
+        },
+        {
+          "name": "PM-16 Student updates profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/profile/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n \"roll_number\": \"{{roll}}\",\n \"academic_level\": \"Diploma\",\n \"career_objective\": \"PLACEMENT\",\n \"skills\": [\"sql\"],\n \"area_ids\": [{{area_id}}]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-17 Student profile invalid level -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/profile/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"academic_level\": \"PhD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-18 Mentor updates profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/profile/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n \"industry\": \"Information Technology\",\n \"current_role\": \"Engineer\",\n \"organisation\": \"TestCo\",\n \"experience_years\": 5,\n \"bio\": \"Postman mentor\",\n \"skills\": [\"python\"],\n \"max_mentees\": 3,\n \"is_accepting\": true,\n \"area_ids\": [{{area_id}}]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-19 Mentor max_mentees 0 -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/profile/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"max_mentees\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-20 Student reads /admin/users -> 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/admin/users",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-21 Admin verifies mentor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/admin/mentors/{{mentor_id}}/verify",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approve\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Discovery",
+      "item": [
+        {
+          "name": "PM-22 Student lists mentors",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test(\"Our mentor is listed\", () => pm.expect(pm.response.json().map(m=>m.id)).to.include(Number(pm.collectionVariables.get(\"mentor_id\"))));",
+                  "pm.test(\"Body: items have id, match, available\", () => { const j = pm.response.json(); pm.expect(j.length>0 && j.every(m=>\"id\" in m && \"match\" in m && \"available\" in m)).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/mentors?limit=100",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-23 Mentor lists mentors -> 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/mentors",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-24 No token -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/mentors"
+          }
+        },
+        {
+          "name": "PM-25 limit=0 -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/mentors?limit=0",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-26 limit=101 -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/mentors?limit=101",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-27 Filter by area",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: only mentors, ids are integers\", () => { const j = pm.response.json(); pm.expect(Array.isArray(j) && j.every(m=>Number.isInteger(m.id))).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/mentors?area_id={{area_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-28 Mentor detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: detail id matches mentor\", () => { const j = pm.response.json(); pm.expect(j.id===Number(pm.collectionVariables.get(\"mentor_id\")) && \"available\" in j).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/mentors/{{mentor_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-29 Mentor detail not found -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/mentors/99999999",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-30 Public mentors (no login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: public list has null match\", () => { const j = pm.response.json(); pm.expect(Array.isArray(j) && j.every(m=>m.match===null)).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/public/mentors?limit=10"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Requests",
+      "item": [
+        {
+          "name": "PM-31 Student sends request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.collectionVariables.set(\"request_id\", pm.response.json().id);",
+                  "pm.test(\"Status PENDING\", () => pm.expect(pm.response.json().status).to.eql(\"PENDING\"));",
+                  "pm.test(\"Body: request ids and values match\", () => { const j = pm.response.json(); pm.expect(j.student_id===Number(pm.collectionVariables.get(\"student_id\")) && j.mentor_id===Number(pm.collectionVariables.get(\"mentor_id\")) && j.area_id===Number(pm.collectionVariables.get(\"area_id\")) && j.type===\"LONG_TERM\").to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/requests",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mentor_id\": {{mentor_id}},\n  \"area_id\": {{area_id}},\n  \"message\": \"I would like guidance on preparing for technical interviews.\",\n  \"objective\": \"Get placed\",\n  \"type\": \"LONG_TERM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-32 Duplicate pending request -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/requests",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mentor_id\": {{mentor_id}},\n  \"area_id\": {{area_id}},\n  \"message\": \"I would like guidance on preparing for technical interviews.\",\n  \"objective\": \"Get placed\",\n  \"type\": \"LONG_TERM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-33 Message too short -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/requests",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mentor_id\": {{mentor_id}},\n  \"area_id\": {{area_id}},\n  \"message\": \"too short\",\n  \"objective\": \"Get placed\",\n  \"type\": \"LONG_TERM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-34 Mentor cannot send request -> 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/requests",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mentor_id\": {{mentor_id}},\n  \"area_id\": {{area_id}},\n  \"message\": \"I would like guidance on preparing for technical interviews.\",\n  \"objective\": \"Get placed\",\n  \"type\": \"LONG_TERM\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-35 Mentor inbox",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test(\"Request in inbox\", () => pm.expect(pm.response.json().map(r=>r.id)).to.include(Number(pm.collectionVariables.get(\"request_id\"))));",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/requests?status=PENDING",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-36 Student cannot accept -> 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/requests/{{request_id}}/accept",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-37 Mentor accepts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.collectionVariables.set(\"relationship_id\", pm.response.json().relationship.id);",
+                  "pm.test(\"Relationship ACTIVE\", () => pm.expect(pm.response.json().relationship.status).to.eql(\"ACTIVE\"));",
+                  "pm.test(\"Body: request ACCEPTED, relationship ACTIVE\", () => { const j = pm.response.json(); pm.expect(j.request.status===\"ACCEPTED\" && j.relationship.status===\"ACTIVE\" && Number.isInteger(j.relationship.id)).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/requests/{{request_id}}/accept",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-38 Accept again -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/requests/{{request_id}}/accept",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-39 Request not found -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/requests/99999999",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Relationship, Goals, Activities, Feedback",
+      "item": [
+        {
+          "name": "PM-40 Get relationship",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: relationship ACTIVE, ids match\", () => { const j = pm.response.json(); pm.expect(j.status===\"ACTIVE\" && j.id===Number(pm.collectionVariables.get(\"relationship_id\"))).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-41 Add goal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.collectionVariables.set(\"goal_id\", pm.response.json().goals[0].id);",
+                  "",
+                  "pm.test(\"Body: goal TODO, progress 0\", () => { const j = pm.response.json(); pm.expect(j.goals[0].status===\"TODO\" && j.progress===0 && j.goals[0].title===\"Mock interview\").to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/goals",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mock interview\",\n  \"target_date\": \"2030-01-01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-42 Goal empty title -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/goals",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-43 Mark goal DONE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test(\"Progress 100\", () => pm.expect(pm.response.json().progress).to.eql(100));",
+                  "pm.test(\"Body: goal DONE\", () => { const j = pm.response.json(); pm.expect(j.goals.some(g=>g.status===\"DONE\")).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/goals/{{goal_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DONE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-44 Add activity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/activities",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activity_type\": \"MEETING\",\n  \"notes\": \"Intro call\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-45 Activity bad type -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/activities",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activity_type\": \"PARTY\",\n  \"notes\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-46 Feedback rating 5",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: feedback rating 5 stored\", () => { const j = pm.response.json(); pm.expect(j.feedback.length===1 && j.feedback[0].rating===5).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/feedback",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comments\": \"Great\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-47 Feedback rating 6 -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/feedback",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 6\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-48 Pause relationship",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: status PAUSED\", () => { const j = pm.response.json(); pm.expect(j.status===\"PAUSED\").to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/status",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PAUSED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-49 Student cannot CLOSE -> 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/status",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CLOSED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-50 Resume",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: status ACTIVE\", () => { const j = pm.response.json(); pm.expect(j.status===\"ACTIVE\").to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/status",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-51 Complete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: status COMPLETED, ended_at set\", () => { const j = pm.response.json(); pm.expect(j.status===\"COMPLETED\" && j.ended_at!==null).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/status",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"COMPLETED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-52 Reopen completed -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/status",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-53 Goal on completed -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/relationships/{{relationship_id}}/goals",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"late goal\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PM-54 Feedback list (student)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "pm.test(\"Body: items array + average number\", () => { const j = pm.response.json(); pm.expect(Array.isArray(j.items) && typeof j.average===\"number\").to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/feedback",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Notifications and Logout",
+      "item": [
+        {
+          "name": "PM-55 Mentor notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "pm.test(\"Has items\", () => pm.expect(pm.response.json().items.length).to.be.above(0));",
+                  "pm.test(\"Body: unread count and typed items\", () => { const j = pm.response.json(); pm.expect(typeof j.unread===\"number\" && j.items.every(i=>\"type\" in i)).to.be.true; });",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/notifications",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mentor_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-56 Student mark all read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/notifications/read-all",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-57 Student logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/logout",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PM-58 Token reuse after logout -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Response time < 2000ms\", () => pm.expect(pm.response.responseTime).to.be.below(2000));",
+                  "",
+                  "const s = pm.response.code;",
+                  "if (s >= 400 && s !== 204) { const j = pm.response.json();",
+                  "  pm.test(\"Body: error has detail\", () => pm.expect(j).to.have.property(\"detail\"));",
+                  "  if (s === 422) pm.test(\"Body: 422 lists loc + msg\", () => { pm.expect(j.detail).to.be.an(\"array\"); pm.expect(j.detail[0]).to.have.property(\"loc\"); pm.expect(j.detail[0]).to.have.property(\"msg\"); });",
+                  "  else pm.test(\"Body: detail is a readable message\", () => pm.expect(j.detail).to.be.a(\"string\").and.not.empty);",
+                  "  pm.test(\"Body: no secrets leaked\", () => pm.expect(pm.response.text().toLowerCase()).to.not.match(/traceback|password_hash|argon2/)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{student_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000/api/v1"
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "admin_password",
+      "value": "admin123"
+    },
+    {
+      "key": "bad_token",
+      "value": "abc.def.ghi"
+    }
+  ]
+}
